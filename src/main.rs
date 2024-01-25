@@ -80,9 +80,23 @@ fn main() {
 
     /* Enter solution here */
 
-    let new_key = G1Affine::zero();
-    let new_proof = G2Affine::zero();
-    let aggregate_signature = G2Affine::zero();
+    let aggr_key = public_keys
+        .iter()
+        .fold(G1Projective::zero(), |acc, (pk, _)| acc + pk)
+        .into_affine();
+
+    let rng = &mut ark_std::rand::rngs::StdRng::seed_from_u64(20399u64);
+    let mut r = G2Affine::rand(rng);
+    let secret = Fr::rand(rng);
+    r = r.mul(secret).into_affine().mul(Fr::from(new_key_index as u32 + 1)).into_affine();
+    let mut sum = G2Affine::zero();
+    for i in 0..public_keys.len() {
+        sum = (sum + public_keys[i].1.mul(Fr::from(new_key_index as u32 + 1)).mul(Fr::from(i as u32 + 1 ).inverse().unwrap())).into_affine();
+    }
+
+    let new_key = G1Affine::generator().mul(secret).sub(aggr_key).into_affine();
+    let new_proof = r.sub(sum).into_affine();
+    let aggregate_signature = bls_sign(secret,message);
 
     /* End of solution */
 
